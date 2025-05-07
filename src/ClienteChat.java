@@ -1,8 +1,11 @@
+import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.*;
 import java.net.*;
+import java.util.HashSet;
+import java.util.Set;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JLabel;
@@ -21,6 +24,62 @@ public class ClienteChat extends javax.swing.JFrame
     private DataOutputStream dosArchivos;
     private DataInputStream disArchivos;
     
+    private Set<String> salasUnidas = new HashSet<>();
+    
+    private void infoSala(String nombreSala)
+    {
+        new Thread(() ->
+        {
+            try
+            {
+                pwMensajes.println("OBTENER_INFO_SALA:" + nombreSala);
+                pwMensajes.flush();
+            }
+            catch(Exception e)
+            {
+                JOptionPane.showMessageDialog(this, "Error al obtener la información de la sala", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }).start();
+    }
+    
+    private void manejarClickSalas(String nombreSala)
+    {
+        if(miembroSala(nombreSala))
+            infoSala(nombreSala);
+        else
+        {
+            int respuesta = JOptionPane.showConfirmDialog(this, "¿Deseas unirte a la sala '" + nombreSala
+            + "'?", "Unirse a la sala", JOptionPane.YES_NO_OPTION);
+            
+            if(respuesta == JOptionPane.YES_OPTION)
+                unirseSala(nombreSala);
+            else
+                infoSala(nombreSala);
+        }
+    }
+    
+    private void unirseSala(String nombreSala)
+    {
+        new Thread(() ->
+        {
+            try
+            {
+                pwMensajes.println("UNIRSE_A_SALA:" + nombreSala);
+                pwMensajes.flush();
+                Thread.sleep(200);
+            }
+            catch(Exception e)
+            {
+                JOptionPane.showMessageDialog(this, "Error al unirse a la sala '" + nombreSala + "'", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }).start();
+    }
+    
+    private boolean miembroSala(String nombreSala)
+    {
+        return salasUnidas.contains(nombreSala);
+    }
+    
     private void procesarLista(String lista, String tipo)
     {
         SwingUtilities.invokeLater(() ->
@@ -38,16 +97,33 @@ public class ClienteChat extends javax.swing.JFrame
                         lblUsuario.setFont(new Font("Segoe UI", Font.BOLD, 14));
                         lblUsuario.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
                         
+                        Color colorOriginal = lblUsuario.getForeground();
+                        
+                        //Hace clickeable los nombres de los usaurios para mandar mensajes privados
                         lblUsuario.addMouseListener(new MouseAdapter()
                         {
+                            //Cuando se hace click indica el tipo de mensaje y el destino
                            @Override
                            public void mouseClicked(MouseEvent e)
                            {
                                lblTipo.setText("Privado");
                                lblDestino.setText(usuario);
                            }
+                           
+                           //Cuando el mouse pasa encima del nombre de usuario se vuelve de color rojo
+                           @Override
+                           public void mouseEntered(MouseEvent e)
+                           {
+                               lblUsuario.setForeground(Color.red);
+                           }
+                           
+                           //Cuando se quita el mouse de encima del nombre vuelve al color original
+                           @Override
+                           public void mouseExited(MouseEvent e)
+                           {
+                               lblUsuario.setForeground(colorOriginal);
+                           }
                         });
-                        
                         panel.add(lblUsuario);
                     }
                 }
@@ -59,6 +135,37 @@ public class ClienteChat extends javax.swing.JFrame
                     JLabel lblSalas = new JLabel(salas);
                     lblSalas.setFont(new Font("Segoe UI", Font.BOLD, 14));
                     lblSalas.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+                    
+                    Color colorSalas = lblSalas.getForeground();
+                    
+                    //Hace clickeable el nombre de la sala para poder chatear/unirse
+                    lblSalas.addMouseListener(new MouseAdapter()
+                    {
+                        //Cuando se hace click indica el tipo de mensaje y el destino
+                           @Override
+                           public void mouseClicked(MouseEvent e)
+                           {
+                               lblTipo.setText("Público");
+                               lblDestino.setText(salas);
+                               
+                               manejarClickSalas(salas);                               
+                           }
+                           
+                           //Cuando el mouse pasa encima del nombre de la sala se vuelve de color rojo
+                           @Override
+                           public void mouseEntered(MouseEvent e)
+                           {
+                               lblSalas.setForeground(Color.red);
+                           }
+                           
+                           //Cuando se quita el mouse de encima del nombre vuelve al color original
+                           @Override
+                           public void mouseExited(MouseEvent e)
+                           {
+                               lblSalas.setForeground(colorSalas);
+                           }
+                    });
+                    
                     panel.add(lblSalas);
                 }
             }
@@ -91,6 +198,44 @@ public class ClienteChat extends javax.swing.JFrame
                             txtVentana.append("[Privado de " + remitente + "]:\n" + contenido + "\n\n");
                             txtVentana.setCaretPosition(txtVentana.getDocument().getLength());
                         });
+                    }
+                    else if(mensaje.startsWith("SALA_CREADA:"))
+                    {
+                        String nombreSala = mensaje.substring(12);
+                        salasUnidas.add(nombreSala);
+                        JOptionPane.showMessageDialog(this, "La sala '" + nombreSala + "' se ha creado correctamente", "Sala creada", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                    else if(mensaje.startsWith("UNIDO_A_SALA:"))
+                    {
+                        String nombreSala = mensaje.substring(13);
+                        salasUnidas.add(nombreSala);
+                        SwingUtilities.invokeLater(() ->
+                        {
+                            txtVentana.append("Te has unido a la sala '" + nombreSala + "'\n");
+                            txtVentana.setCaretPosition(txtVentana.getDocument().getLength());
+                        });
+                        
+                    }
+                    else if(mensaje.startsWith("INFO_SALA:"))
+                    {
+                        String[] partes = mensaje.substring(10).split(":", 3);
+                        String nombreSala = partes[0];
+                        String creador = partes[1];
+                        String usuarios = partes[2];
+                        
+                        SwingUtilities.invokeLater(()->
+                        {
+                            txtVentana.append("--- INFORMACIÓN DE LA SALA ---\n");
+                            txtVentana.append("Sala: " + nombreSala + "\n");
+                            txtVentana.append("Creador: " + creador + "\n");
+                            txtVentana.append("Miembros: " + usuarios + "\n");
+                            txtVentana.append("------------------------------------------\n");
+                            txtVentana.setCaretPosition(txtVentana.getDocument().getLength());
+                        });
+                    }
+                    else if(mensaje.startsWith("ERROR"))
+                    {
+                        JOptionPane.showMessageDialog(this, mensaje, "Error", JOptionPane.ERROR_MESSAGE);
                     }
                 }
             }
@@ -335,7 +480,7 @@ public class ClienteChat extends javax.swing.JFrame
         {
             String tipo = lblTipo.getText();
             String destino = lblDestino.getText();
-            String mensaje = txtMensaje.getText();
+            String mensaje = txtMensaje.getText().trim();
 
             if(!mensaje.isEmpty())
             {
@@ -344,6 +489,13 @@ public class ClienteChat extends javax.swing.JFrame
                     pwMensajes.println("MENSAJE_PRIVADO:" + destino + ":" + mensaje);
                     pwMensajes.flush();
                     txtVentana.append("[Privado a " + destino + "]:\n" + mensaje + "\n\n");
+                    txtMensaje.setText("");
+                }
+                else if(tipo.equals("Público"))
+                {
+                    //pwMensajes.println("MENSAJE_PUBLICO:" + destino + ":" + mensaje);
+                    //pwMensajes.flush();
+                    txtVentana.append("[Público a la sala '" + destino + "']:\n" + mensaje + "\n\n");
                     txtMensaje.setText("");
                 }
             }

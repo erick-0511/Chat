@@ -92,7 +92,8 @@ class GestorUsuarios
 
 class GestorSalas
 {
-    private static final ConcurrentHashMap<String, Set<String>> salas = new ConcurrentHashMap<>();
+    public static final ConcurrentHashMap<String, Set<String>> salas = new ConcurrentHashMap<>();
+    public static final ConcurrentHashMap<String, String> creadores = new ConcurrentHashMap<>();
     
     public static boolean crearSala(String nombreSala, String usuarioCreador)
     {
@@ -102,6 +103,8 @@ class GestorSalas
             sala = ConcurrentHashMap.newKeySet();
             sala.add(usuarioCreador);
             salas.put(nombreSala, sala);
+            creadores.put(nombreSala, usuarioCreador);
+            System.out.println("Sala " + nombreSala + " creada por " + usuarioCreador);
             return true;
         }
         return false;
@@ -116,8 +119,31 @@ class GestorSalas
     {
         Set<String> sala = salas.get(nombreSala);
         if(sala != null)
-            return sala.add(usuario);
+        {
+            boolean resultado = sala.add(usuario);
+            if(resultado)
+                System.out.println("Usuario " + usuario + " se unio a " + nombreSala);
+            return resultado;
+        }
         return false;
+    }
+    
+    public static void eliminarUsuario(String usuario)
+    {
+        for(Set<String> sala: salas.values())
+            if(sala.remove(usuario))
+                System.out.println("Usuario " + usuario + " eliminado de la sala " + sala);
+    }
+    
+    public static String listaUsuariosSala(String nombreSala)
+    {
+        Set<String> sala = salas.get(nombreSala);
+        return (sala != null) ? String.join(", ", sala) : "La sala no existe";
+    }
+    
+    public static String obtenerCreador(String nombreSala)
+    {
+        return creadores.getOrDefault(nombreSala, "Desconocido");
     }
 }
 
@@ -188,7 +214,7 @@ class ManejadorCliente extends Thread
                     boolean salaCreada = GestorSalas.crearSala(nombreSala, nombreUsuario+"#"+socketTexto.getPort());
                     if(salaCreada)
                     {
-                        pwTexto.println("SALA CREADA: " + nombreSala);
+                        pwTexto.println("SALA_CREADA:" + nombreSala);
                     }
                     else
                         pwTexto.println("ERROR: La sala ya existe");
@@ -219,6 +245,41 @@ class ManejadorCliente extends Thread
                         pwTexto.flush();
                     }
                 }
+                else if(instruccion.startsWith("OBTENER_INFO_SALA:"))
+                {
+                    String nombreSala = instruccion.substring(18);
+                    Set<String> sala = GestorSalas.salas.get(nombreSala);
+                    
+                    if(sala != null)
+                    {
+                        String creador = GestorSalas.obtenerCreador(nombreSala);
+                        //String usuarios = String.join(", ", sala);
+                        String usuarios = GestorSalas.listaUsuariosSala(nombreSala);
+                        
+                        pwTexto.println("INFO_SALA:" + nombreSala + ":" + creador + ":" + usuarios);
+                    }
+                    else
+                    {
+                        pwTexto.println("ERROR: La sala " + nombreSala + " no existe");
+                    }
+                    pwTexto.flush();
+                }
+                else if(instruccion.startsWith("UNIRSE_A_SALA:"))
+                {
+                    String nombreSala = instruccion.substring(14);
+                    String usuario = nombreUsuario + "#" + socketTexto.getPort();
+                    
+                    if(GestorSalas.unirseSala(nombreSala, usuario))
+                    {
+                        pwTexto.println("UNIDO_A_SALA:" + nombreSala);
+                        pwTexto.flush();
+                        Set<String> sala = GestorSalas.salas.get(nombreSala);
+                        String creador = GestorSalas.obtenerCreador(nombreSala);
+                        String usuarios = String.join(", ", sala);
+                        pwTexto.println("INFO_SALA:" + nombreSala + ":" + creador + ":" + usuarios);
+                        pwTexto.flush();
+                    }
+                }
             }
         }
         catch(IOException e)
@@ -228,7 +289,11 @@ class ManejadorCliente extends Thread
         finally
         {
             if(nombreUsuario != null)
-                GestorUsuarios.eliminarUsuario(nombreUsuario + "#" + socketTexto.getPort());
+            {
+                String nombreCompleto = nombreUsuario + "#" + socketTexto.getPort();
+                GestorUsuarios.eliminarUsuario(nombreCompleto);
+                GestorSalas.eliminarUsuario(nombreCompleto);
+            }
         }
     }
 }
