@@ -280,6 +280,60 @@ class ManejadorCliente extends Thread
                         pwTexto.flush();
                     }
                 }
+                else if(instruccion.startsWith("MENSAJE_PUBLICO:"))
+                {
+                    String[] partes = instruccion.substring(16).split(":", 2);
+                    String destinatario = partes[0];
+                    String mensaje = partes[1];
+                    
+                    //Obtiene la sala a la que se quiere mandar
+                    Set<String> sala = GestorSalas.salas.get(destinatario);
+                    //Verifica que la sala exista
+                    if(sala != null)
+                    {
+                        //Obtiene el nombre del usuario que manda el mensaje
+                        String remitente = nombreUsuario + "#" + socketTexto.getPort();
+                        //Verifica que el remitente sea usuario de la sala
+                        if(sala.contains(remitente))
+                        {
+                            //Itera sobre todos los usaurios de la sala
+                            for(String miembro : sala)
+                            {
+                                //No envia el mensaje al remitente
+                                if(!miembro.equals(remitente))
+                                {
+                                    try
+                                    {
+                                        //Manda el mensaje de froma similar que el mensaje privado
+                                        Usuario usuarioDestino = GestorUsuarios.getUsuario(miembro);
+                                        if(usuarioDestino != null)
+                                        {
+                                            PrintWriter pwDest = new PrintWriter(new OutputStreamWriter(usuarioDestino.getSocketTexto().getOutputStream(), "ISO-8859-1"));
+                                            pwDest.println("PUBLICO_EN_SALA:" + destinatario + ":" + remitente + ":" + mensaje);
+                                            pwDest.flush();
+                                        }
+                                    }
+                                    catch(Exception e)
+                                    {
+                                        //Manda error si no se ecuentra un cierto miembro de la sala
+                                        pwTexto.println("ERROR: Usuario '" + miembro + "' no encontrado");
+                                        pwTexto.flush();
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            pwTexto.println("ERROR: No eres miembro de la sala '" + destinatario + "'");
+                            pwTexto.flush();
+                        }
+                    }
+                    else
+                    {
+                        pwTexto.println("ERROR: La sala '" + destinatario + "' no existe");
+                        pwTexto.flush();
+                    }
+                }
             }
         }
         catch(IOException e)

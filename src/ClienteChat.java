@@ -45,14 +45,22 @@ public class ClienteChat extends javax.swing.JFrame
     private void manejarClickSalas(String nombreSala)
     {
         if(miembroSala(nombreSala))
+        {
             infoSala(nombreSala);
+            btnEnviar.setEnabled(true);
+            btnArchivo.setEnabled(true);
+        }
         else
         {
             int respuesta = JOptionPane.showConfirmDialog(this, "¿Deseas unirte a la sala '" + nombreSala
             + "'?", "Unirse a la sala", JOptionPane.YES_NO_OPTION);
             
             if(respuesta == JOptionPane.YES_OPTION)
+            {
                 unirseSala(nombreSala);
+                btnEnviar.setEnabled(true);
+                btnArchivo.setEnabled(true);
+            }
             else
                 infoSala(nombreSala);
         }
@@ -108,6 +116,8 @@ public class ClienteChat extends javax.swing.JFrame
                            {
                                lblTipo.setText("Privado");
                                lblDestino.setText(usuario);
+                               btnEnviar.setEnabled(true);
+                               btnArchivo.setEnabled(true);
                            }
                            
                            //Cuando el mouse pasa encima del nombre de usuario se vuelve de color rojo
@@ -231,6 +241,21 @@ public class ClienteChat extends javax.swing.JFrame
                             txtVentana.append("Miembros: " + usuarios + "\n");
                             txtVentana.append("------------------------------------------\n");
                             txtVentana.setCaretPosition(txtVentana.getDocument().getLength());
+                        });
+                    }
+                    else if(mensaje.startsWith("PUBLICO_EN_SALA:"))
+                    {
+                        //Obtiene las partes del mensaje
+                        String[] partes = mensaje.substring(16).split(":", 3);
+                        String nombreSala = partes[0];
+                        String remitente = partes[1];
+                        String contenido = partes[2];
+                        
+                        SwingUtilities.invokeLater(() ->
+                        {
+                           txtVentana.append("[Sala '" + nombreSala + "' - " + remitente + "]:\n"
+                           + contenido + "\n\n");
+                           txtVentana.setCaretPosition(txtVentana.getDocument().getLength());
                         });
                     }
                     else if(mensaje.startsWith("ERROR"))
@@ -403,9 +428,7 @@ public class ClienteChat extends javax.swing.JFrame
             btnConectar.setEnabled(false);
             btnSalas.setEnabled(true);
             btnUsuarios.setEnabled(true);
-            btnEnviar.setEnabled(true);
             txtMensaje.setEnabled(true);
-            btnArchivo.setEnabled(true);
 
             pwMensajes.println(nombreUsuario);
             pwMensajes.flush();
@@ -493,8 +516,8 @@ public class ClienteChat extends javax.swing.JFrame
                 }
                 else if(tipo.equals("Público"))
                 {
-                    //pwMensajes.println("MENSAJE_PUBLICO:" + destino + ":" + mensaje);
-                    //pwMensajes.flush();
+                    pwMensajes.println("MENSAJE_PUBLICO:" + destino + ":" + mensaje);
+                    pwMensajes.flush();
                     txtVentana.append("[Público a la sala '" + destino + "']:\n" + mensaje + "\n\n");
                     txtMensaje.setText("");
                 }
