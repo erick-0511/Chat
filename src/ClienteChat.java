@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Set;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -116,6 +117,7 @@ public class ClienteChat extends javax.swing.JFrame
                            {
                                lblTipo.setText("Privado");
                                lblDestino.setText(usuario);
+                               txtMensaje.setText("");
                                btnEnviar.setEnabled(true);
                                btnArchivo.setEnabled(true);
                            }
@@ -157,6 +159,7 @@ public class ClienteChat extends javax.swing.JFrame
                            {
                                lblTipo.setText("Público");
                                lblDestino.setText(salas);
+                               txtMensaje.setText("");
                                
                                manejarClickSalas(salas);                               
                            }
@@ -239,7 +242,7 @@ public class ClienteChat extends javax.swing.JFrame
                             txtVentana.append("Sala: " + nombreSala + "\n");
                             txtVentana.append("Creador: " + creador + "\n");
                             txtVentana.append("Miembros: " + usuarios + "\n");
-                            txtVentana.append("------------------------------------------\n");
+                            txtVentana.append("------------------------------------------\n\n");
                             txtVentana.setCaretPosition(txtVentana.getDocument().getLength());
                         });
                     }
@@ -375,6 +378,11 @@ public class ClienteChat extends javax.swing.JFrame
 
         btnArchivo.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
         btnArchivo.setText("Archivo");
+        btnArchivo.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnArchivoActionPerformed(evt);
+            }
+        });
         getContentPane().add(btnArchivo, new org.netbeans.lib.awtextra.AbsoluteConstraints(420, 520, -1, -1));
 
         btnCrearsala.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
@@ -542,6 +550,65 @@ public class ClienteChat extends javax.swing.JFrame
         else
         JOptionPane.showMessageDialog(this, "Error al crear la sala", "Error", JOptionPane.ERROR_MESSAGE);
     }//GEN-LAST:event_btnCrearsalaActionPerformed
+
+    private void btnArchivoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnArchivoActionPerformed
+        new Thread(() ->
+        {
+            try
+        {
+            JFileChooser jf = new JFileChooser();
+            jf.setMultiSelectionEnabled(true);
+            int r = jf.showOpenDialog(null);
+            
+            if(r == JFileChooser.APPROVE_OPTION)
+            {
+                File[] archivosSeleccionados = jf.getSelectedFiles();
+                
+                //Indica el tipo de mensaje y destinatario
+                String tipo = lblTipo.getText().equals("Privado") ? "USUARIO" : "SALA";
+                String destino = lblDestino.getText();
+                
+                //Envia el comando para recibir archivos
+                pwMensajes.println("ENVIAR_ARCHIVOS:" + tipo + ":" + destino);
+                pwMensajes.flush();
+                
+                //Envia el número de archivos
+                dosArchivos.writeInt(archivosSeleccionados.length);
+                dosArchivos.flush();
+                
+                //Envia los archivos (usa un ciclo que recorra el array)
+                for(File archivos : archivosSeleccionados)
+                {
+                    String nombre = archivos.getName();
+                    String path = archivos.getAbsolutePath();
+                    long tam = archivos.length();
+                    
+                    dosArchivos.writeUTF(nombre);
+                    dosArchivos.flush();
+                    dosArchivos.writeLong(tam);
+                    dosArchivos.flush();
+                    
+                    //Enviar datos del archivo
+                    FileInputStream fis = new FileInputStream(archivos);
+                    long enviados = 0;
+                    int l = 0;
+                    byte[] b = new byte[3500];
+                    
+                    while(enviados < tam)
+                    {
+                        l = fis.read(b);
+                        dosArchivos.write(b, 0, l);
+                        dosArchivos.flush();
+                        enviados += 1;
+                    }
+                    fis.close();
+                }
+            }
+        }
+        catch(Exception e)
+        {   }
+        }).start();
+    }//GEN-LAST:event_btnArchivoActionPerformed
 
     /**
      * @param args the command line arguments

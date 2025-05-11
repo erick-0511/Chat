@@ -88,6 +88,12 @@ class GestorUsuarios
     {
         return usuarios.get(nombre);
     }
+    
+    public static Socket getSocketArchivos(String nombre)
+    {
+        Usuario usuario = usuarios.get(nombre);
+        return (usuario != null) ? usuario.getSocketArchivos() : null;
+    }
 }
 
 class GestorSalas
@@ -173,7 +179,8 @@ class ManejadorCliente extends Thread
         try(
             BufferedReader brTexto = new BufferedReader(new InputStreamReader(socketTexto.getInputStream(), "ISO-8859-1"));
             PrintWriter pwTexto = new PrintWriter(new OutputStreamWriter(socketTexto.getOutputStream(), "ISO-8859-1"));
-            DataInputStream disArchivo = new DataInputStream(socketArchivos.getInputStream()))
+            DataInputStream disArchivo = new DataInputStream(socketArchivos.getInputStream());
+            DataOutputStream dosArchivos = new DataOutputStream(socketArchivos.getOutputStream()))
         {
             nombreUsuario = brTexto.readLine();
             String nombreArchivo = disArchivo.readUTF();
@@ -333,6 +340,55 @@ class ManejadorCliente extends Thread
                         pwTexto.println("ERROR: La sala '" + destinatario + "' no existe");
                         pwTexto.flush();
                     }
+                }
+                else if(instruccion.startsWith("ENVIAR_ARCHIVOS:"))
+                {
+                    final String instruccionArchivos = instruccion;
+                    new Thread(() ->
+                    {
+                        try
+                        {
+                            File f = new File("");
+                            String ruta = f.getAbsolutePath();
+
+                            String[] partes = instruccionArchivos.substring(16).split(":", 2);
+                            String tipo = partes[0];
+                            String destino = partes[1];
+                            String rutaCompleta = ruta + "\\" + destino + "\\";
+
+                            File f2 = new File(rutaCompleta);
+                            f2.mkdirs();
+                            f2.setWritable(true);
+
+                            int numArchivos = disArchivo.readInt();
+
+                            for(int i=0; i<numArchivos; i++)
+                            {
+                                String nombre = disArchivo.readUTF();
+                                long tam = disArchivo.readLong();
+
+                                File archivo = new File(f2, nombre);
+                                FileOutputStream fos = new FileOutputStream(archivo);
+
+                                long recibidos = 0;
+                                int l=0;
+                                byte[] b = new byte[3500];
+
+                                while(recibidos < tam)
+                                {
+                                    l = disArchivo.read(b);
+                                    fos.write(b, 0, l);
+                                    recibidos += l;
+                                }
+                                fos.close();
+                            }
+                        }
+                        catch(Exception e)
+                        {
+                            pwTexto.println("ERROR: Ocurrio un error en la recepción del archivo");
+                            pwTexto.flush();
+                        }
+                    }).start();
                 }
             }
         }
