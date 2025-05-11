@@ -555,58 +555,58 @@ public class ClienteChat extends javax.swing.JFrame
         new Thread(() ->
         {
             try
-        {
-            JFileChooser jf = new JFileChooser();
-            jf.setMultiSelectionEnabled(true);
-            int r = jf.showOpenDialog(null);
-            
-            if(r == JFileChooser.APPROVE_OPTION)
             {
-                File[] archivosSeleccionados = jf.getSelectedFiles();
-                
-                //Indica el tipo de mensaje y destinatario
-                String tipo = lblTipo.getText().equals("Privado") ? "USUARIO" : "SALA";
-                String destino = lblDestino.getText();
-                
-                //Envia el comando para recibir archivos
-                pwMensajes.println("ENVIAR_ARCHIVOS:" + tipo + ":" + destino);
-                pwMensajes.flush();
-                
-                //Envia el número de archivos
-                dosArchivos.writeInt(archivosSeleccionados.length);
-                dosArchivos.flush();
-                
-                //Envia los archivos (usa un ciclo que recorra el array)
-                for(File archivos : archivosSeleccionados)
+                JFileChooser jf = new JFileChooser();
+                jf.setMultiSelectionEnabled(true);
+                int r = jf.showOpenDialog(null);
+
+                if(r == JFileChooser.APPROVE_OPTION)
                 {
-                    String nombre = archivos.getName();
-                    String path = archivos.getAbsolutePath();
-                    long tam = archivos.length();
-                    
-                    dosArchivos.writeUTF(nombre);
+                    File[] archivosSeleccionados = jf.getSelectedFiles();
+
+                    //Indica el tipo de mensaje y destinatario
+                    String tipo = lblTipo.getText().equals("Privado") ? "USUARIO" : "SALA";
+                    String destino = lblDestino.getText();
+
+                    //Envia el comando para recibir archivos
+                    pwMensajes.println("ENVIAR_ARCHIVOS:" + tipo + ":" + destino);
+                    pwMensajes.flush();
+
+                    //Envia el número de archivos
+                    dosArchivos.writeInt(archivosSeleccionados.length);
                     dosArchivos.flush();
-                    dosArchivos.writeLong(tam);
-                    dosArchivos.flush();
-                    
-                    //Enviar datos del archivo
-                    FileInputStream fis = new FileInputStream(archivos);
-                    long enviados = 0;
-                    int l = 0;
-                    byte[] b = new byte[3500];
-                    
-                    while(enviados < tam)
+
+                    //Envia los archivos (usa un ciclo que recorra el array)
+                    for(File archivos : archivosSeleccionados)
                     {
-                        l = fis.read(b);
-                        dosArchivos.write(b, 0, l);
+                        String nombre = archivos.getName();
+                        long tam = archivos.length();
+
+                        dosArchivos.writeUTF(nombre);
                         dosArchivos.flush();
-                        enviados += 1;
+                        dosArchivos.writeLong(tam);
+                        dosArchivos.flush();
+
+                        //Enviar datos del archivo
+                        FileInputStream fis = new FileInputStream(archivos);
+                        long enviados = 0;
+                        int l = 0;
+                        byte[] b = new byte[4096];
+
+                        while(enviados<tam && (l = fis.read(b)) != -1)
+                        {
+                            dosArchivos.write(b, 0, l);
+                            dosArchivos.flush();
+                            enviados += l;
+                        }
+                        fis.close();
                     }
-                    fis.close();
                 }
             }
-        }
-        catch(Exception e)
-        {   }
+            catch(Exception e)
+            {
+                JOptionPane.showMessageDialog(this, "Ocurrio un error en la transferencia", "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }).start();
     }//GEN-LAST:event_btnArchivoActionPerformed
 

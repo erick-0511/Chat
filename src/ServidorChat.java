@@ -372,7 +372,7 @@ class ManejadorCliente extends Thread
 
                                 long recibidos = 0;
                                 int l=0;
-                                byte[] b = new byte[3500];
+                                byte[] b = new byte[4096];
 
                                 while(recibidos < tam)
                                 {
