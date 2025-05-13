@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -136,9 +137,14 @@ class GestorSalas
     
     public static void eliminarUsuario(String usuario)
     {
-        for(Set<String> sala: salas.values())
+        for(Map.Entry<String, Set<String>> entry : salas.entrySet())
+        {
+            String nombreSala = entry.getKey();
+            Set<String> sala = entry.getValue();
+            
             if(sala.remove(usuario))
-                System.out.println("Usuario " + usuario + " eliminado de la sala " + sala);
+                System.out.println("Usuario " + usuario + " eliminado de la sala " + nombreSala);
+        }
     }
     
     public static String listaUsuariosSala(String nombreSala)
@@ -197,7 +203,7 @@ class ManejadorCliente extends Thread
                     
                 System.out.println("'" + nombreUsuario + "' conectado desde:\n"
                     + "- Texto/Mensajes: " + ipTexto + ": " + puertoTexto + "\n"
-                    + "- Archivos: " + ipArchivos + ": " + puertoArchivos);
+                    + "- Archivos: " + ipArchivos + ": " + puertoArchivos + "\n");
             } 
             else 
             {
@@ -343,49 +349,107 @@ class ManejadorCliente extends Thread
                 }
                 else if(instruccion.startsWith("ENVIAR_ARCHIVOS:"))
                 {
+                    final String nomUsuario = nombreUsuario;
                     final String instruccionArchivos = instruccion;
                     new Thread(() ->
                     {
                         try
                         {
-                            File f = new File("");
-                            String ruta = f.getAbsolutePath();
-
                             String[] partes = instruccionArchivos.substring(16).split(":", 2);
                             String tipo = partes[0];
                             String destino = partes[1];
-                            String rutaCompleta = ruta + "\\" + destino + "\\";
-
-                            File f2 = new File(rutaCompleta);
-                            f2.mkdirs();
-                            f2.setWritable(true);
 
                             int numArchivos = disArchivo.readInt();
-
-                            for(int i=0; i<numArchivos; i++)
+                            
+                            if(tipo.equals("USUARIO"))
                             {
-                                String nombre = disArchivo.readUTF();
-                                long tam = disArchivo.readLong();
-
-                                File archivo = new File(f2, nombre);
-                                FileOutputStream fos = new FileOutputStream(archivo);
-
-                                long recibidos = 0;
-                                int l=0;
-                                byte[] b = new byte[4096];
-
-                                while(recibidos < tam)
+                                Usuario usuarioDestino = GestorUsuarios.getUsuario(destino);
+                                if(usuarioDestino != null)
                                 {
-                                    l = disArchivo.read(b);
-                                    fos.write(b, 0, l);
-                                    recibidos += l;
+                                    DataOutputStream dosDestino = new DataOutputStream(usuarioDestino.getSocketArchivos().getOutputStream());
+                                    PrintWriter pwDestino = new PrintWriter(new OutputStreamWriter(usuarioDestino.getSocketTexto().getOutputStream(), "ISO-8859-1"));
+                                    
+                                    pwDestino.println("RECIBIR_ARCHIVOS:USUARIO:"+nomUsuario+"#"+socketTexto.getPort());
+                                    pwDestino.flush();
+              
+                                    dosDestino.writeInt(numArchivos);
+                                    dosDestino.flush();
+                                    
+                                    for(int i=0; i<numArchivos; i++)
+                                    {
+                                        String nombreArchivos = disArchivo.readUTF();
+                                        long size = disArchivo.readLong();
+                                        
+                                        dosDestino.writeUTF(nombreArchivos);
+                                        dosDestino.writeLong(size);
+                                        dosDestino.flush();
+                                        
+                                        byte[] buffer = new byte[4096];
+                                        long restantes = size;
+                                        while(restantes>0)
+                                        {
+                                            int leidos = disArchivo.read(buffer, 0, (int) Math.min(buffer.length, restantes));
+                                            dosDestino.write(buffer, 0, leidos);
+                                            restantes -= leidos;
+                                        }
+                                        dosDestino.flush();
+                                    }
                                 }
-                                fos.close();
+                                else
+                                {
+                                    pwTexto.println("ERROR: Usuario " + destino + " no encontrado");
+                                    pwTexto.flush();
+                                }
+                            }
+                            else if(tipo.equals("SALA"))
+                            {
+                                Set<String> miembros = GestorSalas.salas.get(destino);
+                                if(miembros != null)
+                                {
+                                    byte[][] archivosData = new byte[numArchivos][];
+                                    String[] nombresArchivos = new String[numArchivos];
+                                    long[] sizes = new long[numArchivos];
+                                    
+                                    for(int i=0; i<numArchivos; i++)
+                                    {
+                                        nombresArchivos[i] = disArchivo.readUTF();
+                                        sizes[i] = disArchivo.readLong();
+                                        archivosData[i] = new byte[(int)sizes[i]];
+                                        disArchivo.readFully(archivosData[i]);
+                                    }
+                                    
+                                    for(String miembro : miembros)
+                                    {
+                                        if(!miembro.equals(nomUsuario+"#"+socketTexto.getPort()))
+                                        {
+                                            Usuario usuarioDestino = GestorUsuarios.getUsuario(miembro);
+                                            if(usuarioDestino != null)
+                                            {
+                                                DataOutputStream dosDestino = new DataOutputStream(usuarioDestino.getSocketArchivos().getOutputStream());
+                                                PrintWriter pwDestino = new PrintWriter(new OutputStreamWriter(usuarioDestino.getSocketTexto().getOutputStream(), "ISO-8859-1"));
+
+                                                pwDestino.println("RECIBIR_ARCHIVOS:SALA:"+nomUsuario+"#"+socketTexto.getPort());
+                                                pwDestino.flush();
+
+                                                dosDestino.writeInt(numArchivos);
+                                                dosDestino.flush();
+
+                                                for(int i=0; i<numArchivos; i++)
+                                                {
+                                                    dosDestino.writeUTF(nombresArchivos[i]);
+                                                    dosDestino.writeLong(sizes[i]);
+                                                    dosDestino.write(archivosData[i]);
+                                                    dosDestino.flush();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                         catch(Exception e)
                         {
-                            pwTexto.println("ERROR: Ocurrio un error en la recepción del archivo");
+                            pwTexto.println("ERROR: Ocurrio un error al reenviar el archivo");
                             pwTexto.flush();
                         }
                     }).start();
@@ -410,7 +474,7 @@ class ManejadorCliente extends Thread
 
 //Clase principal
 public class ServidorChat 
-{
+{   
     public static void main(String[] args) 
     {
         //Crea los sockets de texto y archivos en los puertos 1234 y 1235

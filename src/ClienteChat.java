@@ -261,6 +261,38 @@ public class ClienteChat extends javax.swing.JFrame
                            txtVentana.setCaretPosition(txtVentana.getDocument().getLength());
                         });
                     }
+                    else if(mensaje.startsWith("RECIBIR_ARCHIVOS:"))
+                    {
+                        String[] partes = mensaje.split(":");
+                        String tipo = partes[1];
+                        String remitente = partes[2];
+                        
+                        File f = new File("");
+                        String ruta = f.getAbsolutePath();
+                        String rutaCompleta = ruta + "\\" + txtNombre.getText() + "\\";
+                        File f2 = new File(rutaCompleta);
+                        f2.mkdirs();
+                        f2.setWritable(true);
+                        
+                        int numArchivos = disArchivos.readInt();
+                        for(int i=0; i<numArchivos; i++)
+                        {
+                            String nombre = disArchivos.readUTF();
+                            long size = disArchivos.readLong();
+                            File archivo = new File(f2, nombre);
+                            FileOutputStream fos = new FileOutputStream(archivo);
+                            byte[] buffer = new byte[4096];
+                            long recibidos = 0;
+                            
+                            while(recibidos < size)
+                            {
+                                int leidos = disArchivos.read(buffer, 0, (int)Math.min(buffer.length, size-recibidos));
+                                fos.write(buffer, 0, leidos);
+                                recibidos += leidos;
+                            }
+                            fos.close();
+                        }
+                    }
                     else if(mensaje.startsWith("ERROR"))
                     {
                         JOptionPane.showMessageDialog(this, mensaje, "Error", JOptionPane.ERROR_MESSAGE);
