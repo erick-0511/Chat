@@ -16,6 +16,7 @@ import javax.swing.SwingUtilities;
 
 public class ClienteChat extends javax.swing.JFrame 
 {
+    //Crea todas las variables necesarias del cliente
     private Socket socketMensajes;
     private Socket socketArchivos;
     
@@ -25,14 +26,17 @@ public class ClienteChat extends javax.swing.JFrame
     private DataOutputStream dosArchivos;
     private DataInputStream disArchivos;
     
+    //Obtiene las salas a las que pertenece el usuario
     private Set<String> salasUnidas = new HashSet<>();
     
+    //Solicita la información de la sala
     private void infoSala(String nombreSala)
     {
         new Thread(() ->
         {
             try
             {
+                //Manda la isntrucción al servidor
                 pwMensajes.println("OBTENER_INFO_SALA:" + nombreSala);
                 pwMensajes.flush();
             }
@@ -43,8 +47,10 @@ public class ClienteChat extends javax.swing.JFrame
         }).start();
     }
     
+    //Maneja los clicks en los nombres de las salas
     private void manejarClickSalas(String nombreSala)
     {
+        //Habilita los botones si el usuario es miembro de la sala
         if(miembroSala(nombreSala))
         {
             infoSala(nombreSala);
@@ -53,26 +59,31 @@ public class ClienteChat extends javax.swing.JFrame
         }
         else
         {
+            //Pregunta si se quiere unir a la sala
             int respuesta = JOptionPane.showConfirmDialog(this, "¿Deseas unirte a la sala '" + nombreSala
             + "'?", "Unirse a la sala", JOptionPane.YES_NO_OPTION);
             
+            //Une a la sala al usaurio
             if(respuesta == JOptionPane.YES_OPTION)
             {
                 unirseSala(nombreSala);
                 btnEnviar.setEnabled(true);
                 btnArchivo.setEnabled(true);
             }
+            //Solo muestra la información de la sala
             else
                 infoSala(nombreSala);
         }
     }
     
+    //Solicita unirse a la sala en caso de respuesta afirmativa
     private void unirseSala(String nombreSala)
     {
         new Thread(() ->
         {
             try
             {
+                //Manda la instrucción al servidor
                 pwMensajes.println("UNIRSE_A_SALA:" + nombreSala);
                 pwMensajes.flush();
                 Thread.sleep(200);
@@ -84,24 +95,26 @@ public class ClienteChat extends javax.swing.JFrame
         }).start();
     }
     
-    private boolean miembroSala(String nombreSala)
-    {
-        return salasUnidas.contains(nombreSala);
-    }
+    //Verifica si el usuario es miembro de la sala seleccionada
+    private boolean miembroSala(String nombreSala)  {   return salasUnidas.contains(nombreSala);    }
     
+    //Procesa la lista de salas y usuarios
     private void procesarLista(String lista, String tipo)
     {
         SwingUtilities.invokeLater(() ->
         {
             JPanel panel = new JPanel();
             panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-                    
+            //Verifica si es la lista de usuarios
             if(tipo.equals("usuarios"))
             {
+                //Recorre toda la lista de usuarios
                 for(String usuario: lista.split(","))
                 {
+                    //Muestra a todos los usuarios menos el actual
                     if(!usuario.equals(txtNombre.getText()))
                     {
+                        //Añade el usuario
                         JLabel lblUsuario = new JLabel(usuario);
                         lblUsuario.setFont(new Font("Segoe UI", Font.BOLD, 14));
                         lblUsuario.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
@@ -124,24 +137,20 @@ public class ClienteChat extends javax.swing.JFrame
                            
                            //Cuando el mouse pasa encima del nombre de usuario se vuelve de color rojo
                            @Override
-                           public void mouseEntered(MouseEvent e)
-                           {
-                               lblUsuario.setForeground(Color.red);
-                           }
+                           public void mouseEntered(MouseEvent e)   {   lblUsuario.setForeground(Color.red);    }
                            
                            //Cuando se quita el mouse de encima del nombre vuelve al color original
                            @Override
-                           public void mouseExited(MouseEvent e)
-                           {
-                               lblUsuario.setForeground(colorOriginal);
-                           }
+                           public void mouseExited(MouseEvent e)    {    lblUsuario.setForeground(colorOriginal);    }
                         });
                         panel.add(lblUsuario);
                     }
                 }
             }
+            //Verifica si es la lista de salas
             else if(tipo.equals("salas"))
             {
+                //Recorre la lista de salas
                 for(String salas: lista.split(","))
                 {
                     JLabel lblSalas = new JLabel(salas);
@@ -166,58 +175,58 @@ public class ClienteChat extends javax.swing.JFrame
                            
                            //Cuando el mouse pasa encima del nombre de la sala se vuelve de color rojo
                            @Override
-                           public void mouseEntered(MouseEvent e)
-                           {
-                               lblSalas.setForeground(Color.red);
-                           }
+                           public void mouseEntered(MouseEvent e)   {    lblSalas.setForeground(Color.red);   }
                            
                            //Cuando se quita el mouse de encima del nombre vuelve al color original
                            @Override
-                           public void mouseExited(MouseEvent e)
-                           {
-                               lblSalas.setForeground(colorSalas);
-                           }
+                           public void mouseExited(MouseEvent e)    {   lblSalas.setForeground(colorSalas); }
                     });
                     
                     panel.add(lblSalas);
                 }
             }
             jScrollPane2.setViewportView(panel);
-            //jScrollPane2.revalidate();
         });
     }
     
+    //Procesa todas las instrucciones provenientes del servidor
     private void escuchaServidor()
     {
         new Thread(() ->
         {
             try
             {
+                //Obtiene las instrucciones del servidor
                 String mensaje;
                 while((mensaje = brMensajes.readLine()) != null)
                 {   
+                    //Comprueba si se quiere obtener la lista de usuarios o salas
                     if(mensaje.startsWith("Lista:"))
                         procesarLista(mensaje.substring(6), "usuarios");
                     else if(mensaje.startsWith("Salas:"))
                         procesarLista(mensaje.substring(6), "salas");
+                    //Procesa el mensaje privado
                     else if(mensaje.startsWith("PRIVADO_DE:"))
                     {
                         String[] partes = mensaje.substring(11).split(":", 2);
                         String remitente = partes[0];
                         String contenido = partes[1];
                         
+                        //Añade el mensaje y su información
                         SwingUtilities.invokeLater(() ->
                         {
                             txtVentana.append("[Privado de " + remitente + "]:\n" + contenido + "\n\n");
                             txtVentana.setCaretPosition(txtVentana.getDocument().getLength());
                         });
                     }
+                    //Verifica que la sala haya sido creada
                     else if(mensaje.startsWith("SALA_CREADA:"))
                     {
                         String nombreSala = mensaje.substring(12);
                         salasUnidas.add(nombreSala);
                         JOptionPane.showMessageDialog(this, "La sala '" + nombreSala + "' se ha creado correctamente", "Sala creada", JOptionPane.INFORMATION_MESSAGE);
                     }
+                    //Verifica que el usaurio se haya añadido a la sala
                     else if(mensaje.startsWith("UNIDO_A_SALA:"))
                     {
                         String nombreSala = mensaje.substring(13);
@@ -229,6 +238,7 @@ public class ClienteChat extends javax.swing.JFrame
                         });
                         
                     }
+                    //Muestra la información de la sala
                     else if(mensaje.startsWith("INFO_SALA:"))
                     {
                         String[] partes = mensaje.substring(10).split(":", 3);
@@ -246,6 +256,7 @@ public class ClienteChat extends javax.swing.JFrame
                             txtVentana.setCaretPosition(txtVentana.getDocument().getLength());
                         });
                     }
+                    //Procesa el mensaje público (mensaje en una sala)
                     else if(mensaje.startsWith("PUBLICO_EN_SALA:"))
                     {
                         //Obtiene las partes del mensaje
@@ -261,12 +272,15 @@ public class ClienteChat extends javax.swing.JFrame
                            txtVentana.setCaretPosition(txtVentana.getDocument().getLength());
                         });
                     }
+                    //Recibe los archivos del servidor (Cliente -> Servidor -> Cliente)
                     else if(mensaje.startsWith("RECIBIR_ARCHIVOS:"))
                     {
                         String[] partes = mensaje.split(":");
                         String tipo = partes[1];
                         String remitente = partes[2];
+                        String destino = partes[3];
                         
+                        //Obtiene la ruta donde se guardará el archivo y crea la carpeta
                         File f = new File("");
                         String ruta = f.getAbsolutePath();
                         String rutaCompleta = ruta + "\\" + txtNombre.getText() + "\\";
@@ -274,16 +288,20 @@ public class ClienteChat extends javax.swing.JFrame
                         f2.mkdirs();
                         f2.setWritable(true);
                         
+                        //Lee el número de archivos por recibir
                         int numArchivos = disArchivos.readInt();
+                        //Recibe cada uno de los archivos
                         for(int i=0; i<numArchivos; i++)
                         {
+                            //Lee los datos del archivo reenviados por el servidor
                             String nombre = disArchivos.readUTF();
                             long size = disArchivos.readLong();
+                            //Accede a la ruta donde se guardará el archivo
                             File archivo = new File(f2, nombre);
                             FileOutputStream fos = new FileOutputStream(archivo);
                             byte[] buffer = new byte[4096];
                             long recibidos = 0;
-                            
+                            //Lee el archivo en bloques de 4 KB
                             while(recibidos < size)
                             {
                                 int leidos = disArchivos.read(buffer, 0, (int)Math.min(buffer.length, size-recibidos));
@@ -291,6 +309,25 @@ public class ClienteChat extends javax.swing.JFrame
                                 recibidos += leidos;
                             }
                             fos.close();
+                            //Si es privado, muestra un mensaje de que es privado
+                            if(tipo.equals("USUARIO"))
+                            {
+                                SwingUtilities.invokeLater(() ->
+                                {
+                                    txtVentana.append("[Privado de " + remitente + "]:\n" + nombre + "\n\n");
+                                    txtVentana.setCaretPosition(txtVentana.getDocument().getLength());
+                                });
+                            }
+                            //Si es público muestra que es público
+                            else if(tipo.equals("SALA"))
+                            {
+                               SwingUtilities.invokeLater(() ->
+                                {
+                                    txtVentana.append("[Sala '" + destino + "' - " + remitente + "]:\n"
+                                    + nombre + "\n\n");
+                                    txtVentana.setCaretPosition(txtVentana.getDocument().getLength());
+                                }); 
+                            }
                         }
                     }
                     else if(mensaje.startsWith("ERROR"))
@@ -458,24 +495,25 @@ public class ClienteChat extends javax.swing.JFrame
             socketMensajes = new Socket(host, 1234);
             socketArchivos = new Socket(host, 1235);
 
+            //Inicializa los pw y br que usará el cliente
             pwMensajes = new PrintWriter(new OutputStreamWriter(socketMensajes.getOutputStream(), "ISO-8859-1"));
             brMensajes = new BufferedReader(new InputStreamReader(socketMensajes.getInputStream(),"ISO-8859-1"));
-
+            //Inicializa los dis y dos que usará el cliente
             dosArchivos = new DataOutputStream(socketArchivos.getOutputStream());
             disArchivos = new DataInputStream(socketArchivos.getInputStream());
-
+            //Habilita los botones para el cliente
             txtNombre.setEnabled(false);
             btnConectar.setEnabled(false);
             btnSalas.setEnabled(true);
             btnUsuarios.setEnabled(true);
             txtMensaje.setEnabled(true);
-
+            //Manda el nombre de usuario por el socket de mensajes
             pwMensajes.println(nombreUsuario);
             pwMensajes.flush();
-
+            //Manda el nombre de usuario por el socket de archivos
             dosArchivos.writeUTF(nombreUsuario);
             dosArchivos.flush();
-
+            //Obtiene el nombre único que se le asigno al cliente
             String mensaje = brMensajes.readLine();
             if(mensaje.startsWith("NOMBRE_UNICO:"))
             {
@@ -484,7 +522,7 @@ public class ClienteChat extends javax.swing.JFrame
                     txtNombre.setText(nombreUnico);
                 });
             }
-
+            //Comienza a escuchar las respuestas por parte del servidor
             escuchaServidor();
         }
         catch(Exception e)
@@ -502,7 +540,7 @@ public class ClienteChat extends javax.swing.JFrame
         JPanel panelUsuarios = new JPanel();
         panelUsuarios.setLayout(new BoxLayout(panelUsuarios, BoxLayout.Y_AXIS));
 
-        //Muestra los usuarios
+        //Manda la instrucción para mostrar usuarios
         new Thread(() ->
             {
                 try
@@ -523,7 +561,7 @@ public class ClienteChat extends javax.swing.JFrame
         //Limpia el scroll
         jScrollPane2.setViewportView(new JPanel());
 
-        //Muestra las salas
+        //Manda la instrucción para mostrar las salas
         new Thread(() ->
             {
                 try
@@ -541,10 +579,11 @@ public class ClienteChat extends javax.swing.JFrame
     private void btnEnviarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEnviarActionPerformed
         try
         {
+            //Obtiene el tipo de mensaje, el destino y el contenido del mensaje
             String tipo = lblTipo.getText();
             String destino = lblDestino.getText();
             String mensaje = txtMensaje.getText().trim();
-
+            //Verifica que txtMensaje no este vacio o solo contenga espacios
             if(!mensaje.isEmpty())
             {
                 if(tipo.equals("Privado"))
@@ -573,6 +612,7 @@ public class ClienteChat extends javax.swing.JFrame
     }//GEN-LAST:event_btnEnviarActionPerformed
 
     private void btnCrearsalaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCrearsalaActionPerformed
+        //Obtiene el nombre de la sala a crear
         String nombreSala = JOptionPane.showInputDialog("Nombre de la sala:");
         if(nombreSala != null && !nombreSala.isEmpty())
         {
@@ -580,7 +620,7 @@ public class ClienteChat extends javax.swing.JFrame
             pwMensajes.flush();
         }
         else
-        JOptionPane.showMessageDialog(this, "Error al crear la sala", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error al crear la sala", "Error", JOptionPane.ERROR_MESSAGE);
     }//GEN-LAST:event_btnCrearsalaActionPerformed
 
     private void btnArchivoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnArchivoActionPerformed
@@ -588,12 +628,14 @@ public class ClienteChat extends javax.swing.JFrame
         {
             try
             {
+                //Permite seleccionar múltiples archivos
                 JFileChooser jf = new JFileChooser();
                 jf.setMultiSelectionEnabled(true);
                 int r = jf.showOpenDialog(null);
-
+                //Verifica que se haya seleccionado la opción de aceptar
                 if(r == JFileChooser.APPROVE_OPTION)
                 {
+                    //Arreglo con los archivos seleccionados
                     File[] archivosSeleccionados = jf.getSelectedFiles();
 
                     //Indica el tipo de mensaje y destinatario
@@ -611,9 +653,10 @@ public class ClienteChat extends javax.swing.JFrame
                     //Envia los archivos (usa un ciclo que recorra el array)
                     for(File archivos : archivosSeleccionados)
                     {
+                        //Obtiene nombre y longitud
                         String nombre = archivos.getName();
                         long tam = archivos.length();
-
+                        //Manda la información de cada archivo
                         dosArchivos.writeUTF(nombre);
                         dosArchivos.flush();
                         dosArchivos.writeLong(tam);
@@ -624,7 +667,7 @@ public class ClienteChat extends javax.swing.JFrame
                         long enviados = 0;
                         int l = 0;
                         byte[] b = new byte[4096];
-
+                        //Envia los archivos en bloques de 4 KB
                         while(enviados<tam && (l = fis.read(b)) != -1)
                         {
                             dosArchivos.write(b, 0, l);
@@ -632,6 +675,17 @@ public class ClienteChat extends javax.swing.JFrame
                             enviados += l;
                         }
                         fis.close();
+                        //Muestra al cliente actual a quien lo mando y el nombre del archivo
+                        if((lblTipo.getText()).equals("Privado"))
+                        {
+                            txtVentana.append("[Privado a " + destino + "]:\n" + nombre + "\n\n");
+                            txtMensaje.setText("");
+                        }
+                        else if((lblTipo.getText()).equals("Público"))
+                        {
+                            txtVentana.append("[Público a la sala '" + destino + "']:\n" + nombre + "\n\n");
+                            txtMensaje.setText("");
+                        }
                     }
                 }
             }
