@@ -4,6 +4,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.*;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
 import javax.swing.BorderFactory;
@@ -347,6 +348,15 @@ public class ClienteChat extends javax.swing.JFrame
     {
         initComponents();
         
+        String[] emojis = {"😀", "😂", "❤️", "🔥", "👍", "👎", "🎉", "😡", "🤔", "👀"};
+        cbEmojis.setModel(new javax.swing.DefaultComboBoxModel<>(emojis));
+        
+        cbEmojis.addActionListener(e ->{
+            String emoji = (String)cbEmojis.getSelectedItem();
+            txtMensaje.setText(txtMensaje.getText() + emoji);
+            cbEmojis.setSelectedIndex(0);
+        });
+        
         //Habilita/deshabilita lo necesario para pdoer funionar
         txtMensaje.setText("");
         txtNombre.setText("");
@@ -356,6 +366,7 @@ public class ClienteChat extends javax.swing.JFrame
         btnEnviar.setEnabled(false);
         txtMensaje.setEnabled(false);
         btnArchivo.setEnabled(false);
+        cbEmojis.setEnabled(false);
     }
 
     /**
@@ -382,6 +393,7 @@ public class ClienteChat extends javax.swing.JFrame
         btnCrearsala = new javax.swing.JButton();
         lblTipo = new javax.swing.JLabel();
         lblDestino = new javax.swing.JLabel();
+        cbEmojis = new javax.swing.JComboBox<>();
         lblFondo = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -430,7 +442,7 @@ public class ClienteChat extends javax.swing.JFrame
         getContentPane().add(jScrollPane2, new org.netbeans.lib.awtextra.AbsoluteConstraints(320, 160, 180, 240));
 
         txtMensaje.setColumns(20);
-        txtMensaje.setFont(new java.awt.Font("Segoe UI", 1, 12)); // NOI18N
+        txtMensaje.setFont(new java.awt.Font("Segoe UI Emoji", 1, 12)); // NOI18N
         txtMensaje.setRows(5);
         jScrollPane3.setViewportView(txtMensaje);
 
@@ -472,6 +484,11 @@ public class ClienteChat extends javax.swing.JFrame
         lblDestino.setText(" ");
         lblDestino.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createEtchedBorder(), "Destinatario", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Segoe UI", 1, 12))); // NOI18N
         getContentPane().add(lblDestino, new org.netbeans.lib.awtextra.AbsoluteConstraints(170, 420, 120, -1));
+
+        cbEmojis.setFont(new java.awt.Font("Segoe UI Emoji", 1, 16)); // NOI18N
+        getContentPane().add(cbEmojis, new org.netbeans.lib.awtextra.AbsoluteConstraints(320, 430, -1, -1));
+
+        lblFondo.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
         getContentPane().add(lblFondo, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 540, 580));
 
         pack();
@@ -496,8 +513,8 @@ public class ClienteChat extends javax.swing.JFrame
             socketArchivos = new Socket(host, 1235);
 
             //Inicializa los pw y br que usará el cliente
-            pwMensajes = new PrintWriter(new OutputStreamWriter(socketMensajes.getOutputStream(), "ISO-8859-1"));
-            brMensajes = new BufferedReader(new InputStreamReader(socketMensajes.getInputStream(),"ISO-8859-1"));
+            pwMensajes = new PrintWriter(new OutputStreamWriter(socketMensajes.getOutputStream(), StandardCharsets.UTF_8));
+            brMensajes = new BufferedReader(new InputStreamReader(socketMensajes.getInputStream(), StandardCharsets.UTF_8));
             //Inicializa los dis y dos que usará el cliente
             dosArchivos = new DataOutputStream(socketArchivos.getOutputStream());
             disArchivos = new DataInputStream(socketArchivos.getInputStream());
@@ -507,6 +524,7 @@ public class ClienteChat extends javax.swing.JFrame
             btnSalas.setEnabled(true);
             btnUsuarios.setEnabled(true);
             txtMensaje.setEnabled(true);
+            cbEmojis.setEnabled(true);
             //Manda el nombre de usuario por el socket de mensajes
             pwMensajes.println(nombreUsuario);
             pwMensajes.flush();
@@ -738,6 +756,7 @@ public class ClienteChat extends javax.swing.JFrame
     private javax.swing.JButton btnEnviar;
     private javax.swing.JButton btnSalas;
     private javax.swing.JButton btnUsuarios;
+    private javax.swing.JComboBox<String> cbEmojis;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;

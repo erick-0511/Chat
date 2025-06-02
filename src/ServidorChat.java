@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
@@ -194,8 +195,8 @@ class ManejadorCliente extends Thread
         
         //Crea br, pw, dis, y dos del usuario
         try(
-            BufferedReader brTexto = new BufferedReader(new InputStreamReader(socketTexto.getInputStream(), "ISO-8859-1"));
-            PrintWriter pwTexto = new PrintWriter(new OutputStreamWriter(socketTexto.getOutputStream(), "ISO-8859-1"));
+            BufferedReader brTexto = new BufferedReader(new InputStreamReader(socketTexto.getInputStream(), StandardCharsets.UTF_8));
+            PrintWriter pwTexto = new PrintWriter(new OutputStreamWriter(socketTexto.getOutputStream(), StandardCharsets.UTF_8));
             DataInputStream disArchivo = new DataInputStream(socketArchivos.getInputStream());
             DataOutputStream dosArchivos = new DataOutputStream(socketArchivos.getOutputStream()))
         {
@@ -267,7 +268,7 @@ class ManejadorCliente extends Thread
                     if(usuarioDestino != null)
                     {
                         //Crea un pw para mandar el mensaje al cliente y envia el mensaje
-                        PrintWriter pwDest = new PrintWriter(new OutputStreamWriter(usuarioDestino.getSocketTexto().getOutputStream(), "ISO-8859-1"));
+                        PrintWriter pwDest = new PrintWriter(new OutputStreamWriter(usuarioDestino.getSocketTexto().getOutputStream(), StandardCharsets.UTF_8));
                         pwDest.println("PRIVADO_DE:" + nombreUsuario+"#"+socketTexto.getPort()+":" + contenido);
                         pwDest.flush();
                     }
@@ -346,7 +347,7 @@ class ManejadorCliente extends Thread
                                         Usuario usuarioDestino = GestorUsuarios.getUsuario(miembro);
                                         if(usuarioDestino != null)
                                         {
-                                            PrintWriter pwDest = new PrintWriter(new OutputStreamWriter(usuarioDestino.getSocketTexto().getOutputStream(), "ISO-8859-1"));
+                                            PrintWriter pwDest = new PrintWriter(new OutputStreamWriter(usuarioDestino.getSocketTexto().getOutputStream(), StandardCharsets.UTF_8));
                                             pwDest.println("PUBLICO_EN_SALA:" + destinatario + ":" + remitente + ":" + mensaje);
                                             pwDest.flush();
                                         }
@@ -400,7 +401,7 @@ class ManejadorCliente extends Thread
                                 if(usuarioDestino != null)
                                 {
                                     DataOutputStream dosDestino = new DataOutputStream(usuarioDestino.getSocketArchivos().getOutputStream());
-                                    PrintWriter pwDestino = new PrintWriter(new OutputStreamWriter(usuarioDestino.getSocketTexto().getOutputStream(), "ISO-8859-1"));
+                                    PrintWriter pwDestino = new PrintWriter(new OutputStreamWriter(usuarioDestino.getSocketTexto().getOutputStream(), StandardCharsets.UTF_8));
                                     
                                     //Manda la instrucción para recibir archivos
                                     pwDestino.println("RECIBIR_ARCHIVOS:USUARIO:"+nomUsuario+"#"+socketTexto.getPort()+":"+destino);
@@ -466,7 +467,7 @@ class ManejadorCliente extends Thread
                                             if(usuarioDestino != null)
                                             {
                                                 DataOutputStream dosDestino = new DataOutputStream(usuarioDestino.getSocketArchivos().getOutputStream());
-                                                PrintWriter pwDestino = new PrintWriter(new OutputStreamWriter(usuarioDestino.getSocketTexto().getOutputStream(), "ISO-8859-1"));
+                                                PrintWriter pwDestino = new PrintWriter(new OutputStreamWriter(usuarioDestino.getSocketTexto().getOutputStream(), StandardCharsets.UTF_8));
 
                                                 pwDestino.println("RECIBIR_ARCHIVOS:SALA:"+nomUsuario+"#"+socketTexto.getPort()+":"+destino);
                                                 pwDestino.flush();
